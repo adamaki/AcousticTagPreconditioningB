@@ -10,13 +10,12 @@ library(XLConnectJars)
 library(XLConnect) 
 library(openxlsx)
 options(java.parameters = "-Xmx32000m")
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 
 #ENTER YOUR VARIABLES HERE
-workingdir = "H:/Data processing/2016 Conditioning study B/Filtered Data/Recoded Day CSV" # change to location of data
-dayfile = "run_1LLF16S100311_day.csv" # change to file to be analysed
-masterfileloc = "H:/Data processing/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
+workingdir = "H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/Recoded Day CSV" # change to location of data
+dayfileloc = "run_1LLF16S100311_day.csv" # change to file to be analysed
+masterfileloc = "H:/Acoustic tag - Preconditioning B/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
 day = '311' # day of the year
 bottom.threshold = 15 # threshold for fish at bottom of cage coding (depth in metres)
 water.height = 35
@@ -180,101 +179,101 @@ setwd(workingdir)
 #                                                                           'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 
 #                                                                           'NULL')) #read data into table
 
-# LOAD DAYFILE
-dayfile_tbl <- read.csv(dayfile, header = TRUE, sep = ",", colClasses = c('NULL', 'NULL', 'NULL', 'NULL', 'character', 'character', 'NULL', 
+# LOAD dayfileloc
+dayfile <- read.csv(dayfileloc, header = TRUE, sep = ",", colClasses = c('NULL', 'NULL', 'NULL', 'NULL', 'character', 'character', 'NULL', 
                                                                           'character', 'character', 'character', 'character', 'NULL', 'NULL', 
                                                                           'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 
                                                                           'NULL')) #read data into table
 
-dayfile_tbl <- dayfile_tbl[!(dayfile_tbl$Period == 'Period'),] # remove old headers
+dayfile <- dayfile[!(dayfile$Period == 'Period'),] # remove old headers
 
 #CONVERT FIELDS INTO CORRECT FORMATS
-dayfile_tbl$Period <- sapply(dayfile_tbl$Period, as.numeric)
-dayfile_tbl$SubCode <- sapply(dayfile_tbl$SubCode, as.numeric)
-dayfile_tbl[, 'EchoTime'] <- as.POSIXct(strptime(dayfile_tbl[,'EchoTime'], "%d/%m/%Y %H:%M:%S", tz = "UTC")) # convert character format to date and time format
-dayfile_tbl$PosX <- as.numeric(dayfile_tbl$PosX)
-dayfile_tbl$PosY <- as.numeric(dayfile_tbl$PosY)
-dayfile_tbl$PosZ <- as.numeric(dayfile_tbl$PosZ)
+dayfile$Period <- sapply(dayfile$Period, as.numeric)
+dayfile$SubCode <- sapply(dayfile$SubCode, as.numeric)
+dayfile[, 'EchoTime'] <- as.POSIXct(strptime(dayfile[,'EchoTime'], "%d/%m/%Y %H:%M:%S", tz = "UTC")) # convert character format to date and time format
+dayfile$PosX <- as.numeric(dayfile$PosX)
+dayfile$PosY <- as.numeric(dayfile$PosY)
+dayfile$PosZ <- as.numeric(dayfile$PosZ)
 
 # TRANSLATE  COORDINATES INTO POSITIVE DEPTH AND ZERO ORIGIN
 
-dayfile_tbl$PosX2 <- round((cos(rot.ang*pi/180)*dayfile_tbl$PosX-sin(rot.ang*pi/180)*dayfile_tbl$PosY)-UTMeast, digits = 2)
-dayfile_tbl$PosY2 <- round((sin(rot.ang*pi/180)*dayfile_tbl$PosX+cos(rot.ang*pi/180)*dayfile_tbl$PosY)-UTMnorth, digits = 2)
-dayfile_tbl$PosX <- dayfile_tbl$PosX2
-dayfile_tbl$PosY <- dayfile_tbl$PosY2
-dayfile_tbl$PosX2 <- NULL
-dayfile_tbl$PosY2 <- NULL
-dayfile_tbl$PosZ <- water.height-dayfile_tbl$PosZ
+dayfile$PosX2 <- round((cos(rot.ang*pi/180)*dayfile$PosX-sin(rot.ang*pi/180)*dayfile$PosY)-UTMeast, digits = 2)
+dayfile$PosY2 <- round((sin(rot.ang*pi/180)*dayfile$PosX+cos(rot.ang*pi/180)*dayfile$PosY)-UTMnorth, digits = 2)
+dayfile$PosX <- dayfile$PosX2
+dayfile$PosY <- dayfile$PosY2
+dayfile$PosX2 <- NULL
+dayfile$PosY2 <- NULL
+dayfile$PosZ <- water.height-dayfile$PosZ
 
 #REMOVE HIDE TAGS
-#dayfile_tbl <- dayfile_tbl[!(dayfile_tbl$Period == hidetag1 | dayfile_tbl$Period == hidetag2 | dayfile_tbl$Period == hidetag3 | 
-#               dayfile_tbl$Period == hidetag4 | dayfile_tbl$Period == hidetag5 | dayfile_tbl$Period == hidetag6 | dayfile_tbl$Period == hidetag7 | dayfile_tbl$Period == hidetag8),]
+#dayfile <- dayfile[!(dayfile$Period == hidetag1 | dayfile$Period == hidetag2 | dayfile$Period == hidetag3 | 
+#               dayfile$Period == hidetag4 | dayfile$Period == hidetag5 | dayfile$Period == hidetag6 | dayfile$Period == hidetag7 | dayfile$Period == hidetag8),]
 
 #REMOVE PINGS ABOVE WATER SURFACE
-dayfile_tbl <- dayfile_tbl[!(dayfile_tbl$PosZ < 0),]
+dayfile <- dayfile[!(dayfile$PosZ < 0),]
 
 #SORT BY TIME AND TAG
-#dayfile_tbl <- dayfile_tbl[order(dayfile_tbl$EchoTime, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by time
-#dayfile_tbl <- dayfile_tbl[order(dayfile_tbl$Period, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by tag
-dayfile_tbl <- arrange(dayfile_tbl, Period, EchoTime) # sort by time and tag
+#dayfile <- dayfile[order(dayfile$EchoTime, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by time
+#dayfile <- dayfile[order(dayfile$Period, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by tag
+dayfile <- arrange(dayfile, Period, EchoTime) # sort by time and tag
 
 #ADD PEN NUMBER
 pen.lookup <- fishid_tbl$Pen # create pen lookup table
 names(pen.lookup) <- fishid_tbl$Period
-dayfile_tbl$PEN <- as.numeric(pen.lookup[as.character(dayfile_tbl$Period)]) # add pen number to day file
-dayfile_tbl <- dayfile_tbl[,c('Period', 'SubCode', 'PEN', 'EchoTime', 'PosX', 'PosY', 'PosZ')] # reorder fields
+dayfile$PEN <- as.numeric(pen.lookup[as.character(dayfile$Period)]) # add pen number to day file
+dayfile <- dayfile[,c('Period', 'SubCode', 'PEN', 'EchoTime', 'PosX', 'PosY', 'PosZ')] # reorder fields
 
 
 #CALCULATE TIMES AND SPEEDS
-periods <- unique(dayfile_tbl$Period)
+periods <- unique(dayfile$Period)
 SEC <- numeric(0)
 
 for(i in 1:length(periods)){
-  SEC <- c(SEC, as.integer(c(NA, diff(subset(dayfile_tbl$EchoTime, dayfile_tbl$Period == periods[i]), lag = 1, differences = 1)))) # calculate time delay between pings
+  SEC <- c(SEC, as.integer(c(NA, diff(subset(dayfile$EchoTime, dayfile$Period == periods[i]), lag = 1, differences = 1)))) # calculate time delay between pings
 }
-dayfile_tbl$SEC <- SEC
+dayfile$SEC <- SEC
 rm(SEC)
-dayfile_tbl$M <- round(c(0, sqrt(diff(dayfile_tbl$PosX)^2+diff(dayfile_tbl$PosY)^2+diff(dayfile_tbl$PosZ)^2)), digits = 3) # calculate distance between pings
-dayfile_tbl$MSEC <- round(dayfile_tbl$M/dayfile_tbl$SEC, digits = 3) # calculate swimming speed in m/sec
-dayfile_tbl$MSEC <- as.numeric(sub("Inf", "0", dayfile_tbl$MSEC)) # replace "Inf" entries
-dayfile_tbl <- subset(dayfile_tbl, dayfile_tbl$SEC >5 | is.na(dayfile_tbl$SEC) == TRUE) # remove entries where time delay too low or too high
-#dayfile_tbl <- dayfile_tbl[!(dayfile_tbl$SEC <5 | dayfile_tbl$SEC >60),] # remove entries where time delay too low or too high
-#dayfile_tbl <- dayfile_tbl[!(dayfile_tbl$SEC <5),] # remove entries where time delay too low or too high
+dayfile$M <- round(c(0, sqrt(diff(dayfile$PosX)^2+diff(dayfile$PosY)^2+diff(dayfile$PosZ)^2)), digits = 3) # calculate distance between pings
+dayfile$MSEC <- round(dayfile$M/dayfile$SEC, digits = 3) # calculate swimming speed in m/sec
+dayfile$MSEC <- as.numeric(sub("Inf", "0", dayfile$MSEC)) # replace "Inf" entries
+dayfile <- subset(dayfile, dayfile$SEC >5 | is.na(dayfile$SEC) == TRUE) # remove entries where time delay too low or too high
+#dayfile <- dayfile[!(dayfile$SEC <5 | dayfile$SEC >60),] # remove entries where time delay too low or too high
+#dayfile <- dayfile[!(dayfile$SEC <5),] # remove entries where time delay too low or too high
 
 #CALCULATE BODY LENGTHS/SEC
 fishid.bl.lookup <- fishid_tbl$L_m # create fish ID lookup table
 names(fishid.bl.lookup) <- fishid_tbl$Period
-dayfile_tbl$BL <- as.numeric(fishid.bl.lookup[as.character(dayfile_tbl$Period)]) # add fish lengths to day file
-dayfile_tbl$BLSEC <- round(dayfile_tbl$MSEC/dayfile_tbl$BL, 3) # calculate BL per sec
-dayfile_tbl <- subset(dayfile_tbl, dayfile_tbl$BLSEC < 10 | is.na(dayfile_tbl$BLSEC) == TRUE) # remove entries where swimming speed is greater than 20 BL/sec (likely multipath)
+dayfile$BL <- as.numeric(fishid.bl.lookup[as.character(dayfile$Period)]) # add fish lengths to day file
+dayfile$BLSEC <- round(dayfile$MSEC/dayfile$BL, 3) # calculate BL per sec
+dayfile <- subset(dayfile, dayfile$BLSEC < 10 | is.na(dayfile$BLSEC) == TRUE) # remove entries where swimming speed is greater than 20 BL/sec (likely multipath)
 
 #CALCULATE HEADING AND TURN RATE
 heading.func()
-dayfile$HEAD <- c(NA, heading)
+dayfileloc$HEAD <- c(NA, heading)
 rm(heading)
 
 
 #DYNAMIC HIDE CODING
-dayfile_tbl <- arrange(dayfile_tbl, Period, EchoTime)
+dayfile <- arrange(dayfile, Period, EchoTime)
 
-hide7NW1 <- subset(dayfile_tbl, Period == hidetag7NW1)
+hide7NW1 <- subset(dayfile, Period == hidetag7NW1)
 names(hide7NW1)[names(hide7NW1) == "EchoTime"] <- "HideTime"
-hide7NW2 <- subset(dayfile_tbl, Period == hidetag7NW2)
+hide7NW2 <- subset(dayfile, Period == hidetag7NW2)
 names(hide7NW2)[names(hide7NW2) == "EchoTime"] <- "HideTime"
-hide7SE1 <- subset(dayfile_tbl, Period == hidetag7SE1)
+hide7SE1 <- subset(dayfile, Period == hidetag7SE1)
 names(hide7SE1)[names(hide7SE1) == "EchoTime"] <- "HideTime"
-hide7SE2 <- subset(dayfile_tbl, Period == hidetag7SE2)
+hide7SE2 <- subset(dayfile, Period == hidetag7SE2)
 names(hide7SE2)[names(hide7SE2) == "EchoTime"] <- "HideTime"
-hide8SW1 <- subset(dayfile_tbl, Period == hidetag8SW1)
+hide8SW1 <- subset(dayfile, Period == hidetag8SW1)
 names(hide8SW1)[names(hide8SW1) == "EchoTime"] <- "HideTime"
-hide8SW2 <- subset(dayfile_tbl, Period == hidetag8SW2)
+hide8SW2 <- subset(dayfile, Period == hidetag8SW2)
 names(hide8SW2)[names(hide8SW2) == "EchoTime"] <- "HideTime"
-hide8NE1 <- subset(dayfile_tbl, Period == hidetag8NE1)
+hide8NE1 <- subset(dayfile, Period == hidetag8NE1)
 names(hide8NE1)[names(hide8NE1) == "EchoTime"] <- "HideTime"
-hide8NE2 <- subset(dayfile_tbl, Period == hidetag8NE2)
+hide8NE2 <- subset(dayfile, Period == hidetag8NE2)
 names(hide8NE2)[names(hide8NE2) == "EchoTime"] <- "HideTime"
 
-dayfile_tbl <- subset(dayfile_tbl, !(Period == hidetag7NW1 | Period ==  hidetag7NW2 | Period == hidetag7SE1 | Period == hidetag7SE2 | Period == hidetag8SW1 | Period == hidetag8SW2 | Period == hidetag8NE1 | Period == hidetag8NE2))
+dayfile <- subset(dayfile, !(Period == hidetag7NW1 | Period ==  hidetag7NW2 | Period == hidetag7SE1 | Period == hidetag7SE2 | Period == hidetag8SW1 | Period == hidetag8SW2 | Period == hidetag8NE1 | Period == hidetag8NE2))
 
 
 if(nrow(hide7NW1) == 0 | nrow(hide7NW2) == 0){
@@ -398,10 +397,10 @@ library(dplyr)
 
 for(i in 1:4){
   
-  all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, get(paste0('hide', as.character(i)))[,'HideTime']))))
+  all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, get(paste0('hide', as.character(i)))[,'HideTime']))))
   
   all <- all %>%
-    left_join(dayfile_tbl, by = c("ts" = "EchoTime")) %>%
+    left_join(dayfile, by = c("ts" = "EchoTime")) %>%
     left_join(get(paste0('hide', as.character(i))), by = c("ts" = "HideTime")) %>%
     arrange(ts) %>%
     fill(PosX.y, PosY.y, PosZ.y, .direction = 'up') %>%
@@ -409,15 +408,15 @@ for(i in 1:4){
     filter(!is.na(PosX.x)) %>%
     arrange(Period.x, ts) 
   
-  dayfile_tbl[,paste0("HID", as.character(i), ".x")] <- all$PosX.y
-  dayfile_tbl[,paste0("HID", as.character(i), ".y")] <- all$PosY.y
-  dayfile_tbl[,paste0("HID", as.character(i), ".z")] <- all$PosZ.y
+  dayfile[,paste0("HID", as.character(i), ".x")] <- all$PosX.y
+  dayfile[,paste0("HID", as.character(i), ".y")] <- all$PosY.y
+  dayfile[,paste0("HID", as.character(i), ".z")] <- all$PosZ.y
 }
 
 rm(all)
 rm(fish.id)
 
-names(dayfile_tbl)[names(dayfile_tbl) == c('HID1.x', 'HID1.y', 'HID1.z', 'HID2.x', 'HID2.y', 'HID2.z', 'HID3.x', 'HID3.y', 'HID3.z', 'HID4.x', 'HID4.y', 'HID4.z')] <- c('P7NW.x', 'P7NW.y', 'P7NW.z', 'P7SE.x', 'P7SE.y', 'P7SE.z', 'P8SW.x', 'P8SW.y', 'P8SW.z', 'P8NE.x', 'P8NE.y', 'P8NE.z')
+names(dayfile)[names(dayfile) == c('HID1.x', 'HID1.y', 'HID1.z', 'HID2.x', 'HID2.y', 'HID2.z', 'HID3.x', 'HID3.y', 'HID3.z', 'HID4.x', 'HID4.y', 'HID4.z')] <- c('P7NW.x', 'P7NW.y', 'P7NW.z', 'P7SE.x', 'P7SE.y', 'P7SE.z', 'P8SW.x', 'P8SW.y', 'P8SW.z', 'P8NE.x', 'P8NE.y', 'P8NE.z')
 hides <- rbind(hide7NW1, hide7NW2, hide7SE1, hide7SE2, hide8SW1, hide8SW2, hide8NE1, hide8NE2)
 names(hides)[names(hides) == 'HideTime'] <- 'EchoTime'
 hides$SEC <- NULL
@@ -428,73 +427,73 @@ hides$BLSEC <- NULL
 
 
 #ENTER CODES FROM MASTERCODE
-dayfile_tbl$BIOF7 <- as.factor(mastercode[day,'BIOF7'])         
-dayfile_tbl$BIOF8 <- as.factor(mastercode[day,'BIOF8'])  
-dayfile_tbl$ARTL <- as.factor(mastercode[day,'ARTL'])  
-dayfile_tbl$INFD <- as.factor(mastercode[day,'INFD'])  
-dayfile_tbl$CHEM <- as.factor(mastercode[day,'CHEM'])  
-dayfile_tbl$WVIS <- as.factor(mastercode[day,'WVIS'])                          
-dayfile_tbl$MOON <- as.factor(mastercode[day,'MOON']) 
+dayfile$BIOF7 <- as.factor(mastercode[day,'BIOF7'])         
+dayfile$BIOF8 <- as.factor(mastercode[day,'BIOF8'])  
+dayfile$ARTL <- as.factor(mastercode[day,'ARTL'])  
+dayfile$INFD <- as.factor(mastercode[day,'INFD'])  
+dayfile$CHEM <- as.factor(mastercode[day,'CHEM'])  
+dayfile$WVIS <- as.factor(mastercode[day,'WVIS'])                          
+dayfile$MOON <- as.factor(mastercode[day,'MOON']) 
 
 #Enter species code
 fishid.origin.lookup <- fishid_tbl$Origin # create fish origin lookup table
 names(fishid.origin.lookup) <- fishid_tbl$Period
-dayfile_tbl$SPEC <- as.factor(fishid.origin.lookup[as.character(dayfile_tbl$Period)]) # add fish origins to day file
+dayfile$SPEC <- as.factor(fishid.origin.lookup[as.character(dayfile$Period)]) # add fish origins to day file
 
 #LICE DATA
-dayfile_tbl$TOT_P7 <- as.numeric(mastercode[day,'LICE_P7_TOT']) 
-dayfile_tbl$PA_A_P7 <- as.numeric(mastercode[day,'LICE_P7_FGPAA']) 
-dayfile_tbl$FG_P7 <- as.numeric(mastercode[day,'LICE_P7_FG']) 
-dayfile_tbl$A_P7 <- as.numeric(mastercode[day,'LICE_P7_A']) 
-dayfile_tbl$PA_P7 <- as.numeric(mastercode[day,'LICE_P7_PA']) 
-dayfile_tbl$CHAL_P7 <- as.numeric(mastercode[day,'LICE_P7_CHAL']) 
-dayfile_tbl$CAL_P7 <- as.numeric(mastercode[day,'LICE_P7_CAL']) 
-dayfile_tbl$TOT_P8 <- as.numeric(mastercode[day,'LICE_P8_TOT']) 
-dayfile_tbl$PA_A_P8 <- as.numeric(mastercode[day,'LICE_P8_FGPAA']) 
-dayfile_tbl$FG_P8 <- as.numeric(mastercode[day,'LICE_P8_FG']) 
-dayfile_tbl$A_P8 <- as.numeric(mastercode[day,'LICE_P8_A']) 
-dayfile_tbl$PA_P8 <- as.numeric(mastercode[day,'LICE_P8_PA']) 
-dayfile_tbl$CHAL_P8 <- as.numeric(mastercode[day,'LICE_P8_CHAL']) 
-dayfile_tbl$CAL_P8 <- as.numeric(mastercode[day,'LICE_P8_CAL']) 
+dayfile$TOT_P7 <- as.numeric(mastercode[day,'LICE_P7_TOT']) 
+dayfile$PA_A_P7 <- as.numeric(mastercode[day,'LICE_P7_FGPAA']) 
+dayfile$FG_P7 <- as.numeric(mastercode[day,'LICE_P7_FG']) 
+dayfile$A_P7 <- as.numeric(mastercode[day,'LICE_P7_A']) 
+dayfile$PA_P7 <- as.numeric(mastercode[day,'LICE_P7_PA']) 
+dayfile$CHAL_P7 <- as.numeric(mastercode[day,'LICE_P7_CHAL']) 
+dayfile$CAL_P7 <- as.numeric(mastercode[day,'LICE_P7_CAL']) 
+dayfile$TOT_P8 <- as.numeric(mastercode[day,'LICE_P8_TOT']) 
+dayfile$PA_A_P8 <- as.numeric(mastercode[day,'LICE_P8_FGPAA']) 
+dayfile$FG_P8 <- as.numeric(mastercode[day,'LICE_P8_FG']) 
+dayfile$A_P8 <- as.numeric(mastercode[day,'LICE_P8_A']) 
+dayfile$PA_P8 <- as.numeric(mastercode[day,'LICE_P8_PA']) 
+dayfile$CHAL_P8 <- as.numeric(mastercode[day,'LICE_P8_CHAL']) 
+dayfile$CAL_P8 <- as.numeric(mastercode[day,'LICE_P8_CAL']) 
 
 #LOCATIONS CODING
-dayfile_tbl$BOT <- as.factor(ifelse(dayfile_tbl$PosZ >= bottom.threshold, 'B', 'Z')) # at cage bottom
-dayfile_tbl$OUT <- as.factor(locationcode(n7code = '7ON', w7code = '7OW', s7code = '7OS', e7code = '7OE', n8code = '8ON', w8code = '8OW', s8code = '8OS', e8code = '8OE')) # fish outside cage
-dayfile_tbl$EDG <- as.factor(locationcode(n7code = '7EN', w7code = '7EW', s7code = '7ES', e7code = '7EE', n8code = '8EN', w8code = '8EW', s8code = '8ES', e8code = '8EE')) # fish at edge of cage
-dayfile_tbl$BIGC <- as.factor(locationcode(n7code = '7CNW', w7code = '7CSW', s7code = '7CSE', e7code = '7CNE', n8code = '8CNW', w8code = '8CSW', s8code = '8CSE', e8code = '8CNE')) # fish in big corners
-dayfile_tbl$SMC <- as.factor(locationcode(n7code = '7XNW', w7code = '7XSW', s7code = '7XSE', e7code = '7XNE', n8code = '8XNW', w8code = '8XSW', s8code = '8XSE', e8code = '8XNE')) # fish in small corners
-#dayfile_tbl$HID <- as.factor(hidecode(p7h1code = '7WHSE', p7h2code = '7WHNW', p8h1code = '8WHSW', p8h2code = '8WHNE')) # fish in hides
-dayfile_tbl$HID <- as.factor(dynamic.hidecode(p7nwhide = '7WHNW', p7sehide = '7WHSE', p8swhide = '8WHSW', p8nehide = '8WHNE', radius = 1, depth = 2, height = 1)) # fish in hides
-dayfile_tbl$CEN <- as.factor(centrecode(highcode7 = '7MH', midcode7 = '7MM', lowcode7 = '7ML', highcode8 = '8MH', midcode8 = '8MM', lowcode8 = '8ML')) # fish in centre of cage
-dayfile_tbl$FDB <- as.factor(atfeedcode(p7fb1code = '7FBSE', p7fb2code = '7FBNW', p8fb1code = '8FBSW', p8fb2code = '8FBNE')) # fish at feed blocks
+dayfile$BOT <- as.factor(ifelse(dayfile$PosZ >= bottom.threshold, 'B', 'Z')) # at cage bottom
+dayfile$OUT <- as.factor(locationcode(n7code = '7ON', w7code = '7OW', s7code = '7OS', e7code = '7OE', n8code = '8ON', w8code = '8OW', s8code = '8OS', e8code = '8OE')) # fish outside cage
+dayfile$EDG <- as.factor(locationcode(n7code = '7EN', w7code = '7EW', s7code = '7ES', e7code = '7EE', n8code = '8EN', w8code = '8EW', s8code = '8ES', e8code = '8EE')) # fish at edge of cage
+dayfile$BIGC <- as.factor(locationcode(n7code = '7CNW', w7code = '7CSW', s7code = '7CSE', e7code = '7CNE', n8code = '8CNW', w8code = '8CSW', s8code = '8CSE', e8code = '8CNE')) # fish in big corners
+dayfile$SMC <- as.factor(locationcode(n7code = '7XNW', w7code = '7XSW', s7code = '7XSE', e7code = '7XNE', n8code = '8XNW', w8code = '8XSW', s8code = '8XSE', e8code = '8XNE')) # fish in small corners
+#dayfile$HID <- as.factor(hidecode(p7h1code = '7WHSE', p7h2code = '7WHNW', p8h1code = '8WHSW', p8h2code = '8WHNE')) # fish in hides
+dayfile$HID <- as.factor(dynamic.hidecode(p7nwhide = '7WHNW', p7sehide = '7WHSE', p8swhide = '8WHSW', p8nehide = '8WHNE', radius = 1, depth = 2, height = 1)) # fish in hides
+dayfile$CEN <- as.factor(centrecode(highcode7 = '7MH', midcode7 = '7MM', lowcode7 = '7ML', highcode8 = '8MH', midcode8 = '8MM', lowcode8 = '8ML')) # fish in centre of cage
+dayfile$FDB <- as.factor(atfeedcode(p7fb1code = '7FBSE', p7fb2code = '7FBNW', p8fb1code = '8FBSW', p8fb2code = '8FBNE')) # fish at feed blocks
 
 
 #SUN AND TIDES CODING
-dayfile_tbl$SUN <- suncode() # sun phase code
-dayfile_tbl$TID <- tidecode() # tide phase code
-dayfile_tbl$PHASE <- as.factor(mastercode[day,'HEIGHT']) # tidal height (spring/neap)
+dayfile$SUN <- suncode() # sun phase code
+dayfile$TID <- tidecode() # tide phase code
+dayfile$PHASE <- as.factor(mastercode[day,'HEIGHT']) # tidal height (spring/neap)
 
 
 #MEAL TIMES CODING
-dayfile_tbl$SMEAL7 <- smealcode(pen = 'P7') # salmon feeding times cage 7 code
-dayfile_tbl$SMEAL8 <- smealcode(pen = 'P8') # salmon feeding times cage 8 code
+dayfile$SMEAL7 <- smealcode(pen = 'P7') # salmon feeding times cage 7 code
+dayfile$SMEAL8 <- smealcode(pen = 'P8') # salmon feeding times cage 8 code
 
 
-if(is.na(mastercode[day, 'AG7F1_N_S'])) {dayfile_tbl$AG7F1 <- 'NA'} else {dayfile_tbl$AG7F1 <- jellycode(feed.block = '7F1')}   # cleanerfish jelly feeding time cage 7 F1 code
-if(is.na(mastercode[day, 'AG7F2_N_S'])) {dayfile_tbl$AG7F2 <- 'NA'} else {dayfile_tbl$AG7F2 <- jellycode(feed.block = '7F2')}   # cleanerfish jelly feeding time cage 7 F2 code
-if(is.na(mastercode[day, 'AG8F1_N_S'])) {dayfile_tbl$AG8F1 <- 'NA'} else {dayfile_tbl$AG8F1 <- jellycode(feed.block = '8F1')}   # cleanerfish jelly feeding time cage 8 F1 code
-if(is.na(mastercode[day, 'AG8F2_N_S'])) {dayfile_tbl$AG8F2 <- 'NA'} else {dayfile_tbl$AG8F2 <- jellycode(feed.block = '8F2')}   # cleanerfish jelly feeding time cage 8 F2 code
+if(is.na(mastercode[day, 'AG7F1_N_S'])) {dayfile$AG7F1 <- 'NA'} else {dayfile$AG7F1 <- jellycode(feed.block = '7F1')}   # cleanerfish jelly feeding time cage 7 F1 code
+if(is.na(mastercode[day, 'AG7F2_N_S'])) {dayfile$AG7F2 <- 'NA'} else {dayfile$AG7F2 <- jellycode(feed.block = '7F2')}   # cleanerfish jelly feeding time cage 7 F2 code
+if(is.na(mastercode[day, 'AG8F1_N_S'])) {dayfile$AG8F1 <- 'NA'} else {dayfile$AG8F1 <- jellycode(feed.block = '8F1')}   # cleanerfish jelly feeding time cage 8 F1 code
+if(is.na(mastercode[day, 'AG8F2_N_S'])) {dayfile$AG8F2 <- 'NA'} else {dayfile$AG8F2 <- jellycode(feed.block = '8F2')}   # cleanerfish jelly feeding time cage 8 F2 code
 
 
-if(is.na(mastercode[day, 'LUMPEL_S'])) {dayfile_tbl$LUMPEL <- 'NA'} else {dayfile_tbl$LUMPEL <- lumpelcode()} # Lumpfish feeding time code
+if(is.na(mastercode[day, 'LUMPEL_S'])) {dayfile$LUMPEL <- 'NA'} else {dayfile$LUMPEL <- lumpelcode()} # Lumpfish feeding time code
 
 #ENVIRONMENTAL DATA
 
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.DOT1$DO.time.1m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.DOT1$DO.time.1m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.DOT1, by=c("ts" = "DO.time.1m")) %>%
   arrange(ts) %>%
   fill(DO.1m) %>%
@@ -502,25 +501,25 @@ all <- all %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$O1 <- all$DO.1m
-dayfile_tbl$T1 <- all$Temp.1m
+dayfile$O1 <- all$DO.1m
+dayfile$T1 <- all$Temp.1m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.sal1$Sal.time.1m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.sal1$Sal.time.1m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.sal1, by=c("ts" = "Sal.time.1m")) %>%
   arrange(ts) %>%
   fill(Sal.1m) %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$S1 <- all$Sal.1m
+dayfile$S1 <- all$Sal.1m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.DOT2$DO.time.2m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.DOT2$DO.time.2m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.DOT2, by=c("ts" = "DO.time.2m")) %>%
   arrange(ts) %>%
   fill(DO.2m) %>%
@@ -528,25 +527,25 @@ all <- all %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$O2 <- all$DO.2m
-dayfile_tbl$T2 <- all$Temp.2m
+dayfile$O2 <- all$DO.2m
+dayfile$T2 <- all$Temp.2m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.sal2$Sal.time.2m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.sal2$Sal.time.2m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.sal2, by=c("ts" = "Sal.time.2m")) %>%
   arrange(ts) %>%
   fill(Sal.2m) %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$S2 <- all$Sal.2m
+dayfile$S2 <- all$Sal.2m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.DOT4$DO.time.4m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.DOT4$DO.time.4m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.DOT4, by=c("ts" = "DO.time.4m")) %>%
   arrange(ts) %>%
   fill(DO.4m) %>%
@@ -554,25 +553,25 @@ all <- all %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$O4 <- all$DO.4m
-dayfile_tbl$T4 <- all$Temp.4m
+dayfile$O4 <- all$DO.4m
+dayfile$T4 <- all$Temp.4m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.sal4$Sal.time.4m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.sal4$Sal.time.4m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.sal4, by=c("ts" = "Sal.time.4m")) %>%
   arrange(ts) %>%
   fill(Sal.4m) %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$S4 <- all$Sal.4m
+dayfile$S4 <- all$Sal.4m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.DOT12$DO.time.12m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.DOT12$DO.time.12m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.DOT12, by=c("ts" = "DO.time.12m")) %>%
   arrange(ts) %>%
   fill(DO.12m) %>%
@@ -580,41 +579,41 @@ all <- all %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$O12 <- all$DO.12m
-dayfile_tbl$T12 <- all$Temp.12m
+dayfile$O12 <- all$DO.12m
+dayfile$T12 <- all$Temp.12m
 
-all <- data.frame(ts = unique(unlist(c(dayfile_tbl$EchoTime, probe.sal12$Sal.time.12m))))
+all <- data.frame(ts = unique(unlist(c(dayfile$EchoTime, probe.sal12$Sal.time.12m))))
 
 all <- all %>%
-  left_join(dayfile_tbl, by=c("ts"="EchoTime")) %>%
+  left_join(dayfile, by=c("ts"="EchoTime")) %>%
   left_join(probe.sal12, by=c("ts" = "Sal.time.12m")) %>%
   arrange(ts) %>%
   fill(Sal.12m) %>%
   filter(!is.na(PosX)) %>%
   arrange(Period, ts) 
 
-dayfile_tbl$S12 <- all$Sal.12m
+dayfile$S12 <- all$Sal.12m
 
 rm(all)
 
-#dayfile_tbl <- dayfile_tbl[c(seq(1, 12), seq(25, 74), seq(13, 24))]
+#dayfile <- dayfile[c(seq(1, 12), seq(25, 74), seq(13, 24))]
 
-dayfile_tbl$P7NW.x <- NULL
-dayfile_tbl$P7NW.y <- NULL
-dayfile_tbl$P7NW.z <- NULL
-dayfile_tbl$P7SE.x <- NULL
-dayfile_tbl$P7SE.y <- NULL
-dayfile_tbl$P7SE.z <- NULL
-dayfile_tbl$P8SW.x <- NULL
-dayfile_tbl$P8SW.y <- NULL
-dayfile_tbl$P8SW.z <- NULL
-dayfile_tbl$P8NE.x <- NULL
-dayfile_tbl$P8NE.y <- NULL
-dayfile_tbl$P8NE.z <- NULL
+dayfile$P7NW.x <- NULL
+dayfile$P7NW.y <- NULL
+dayfile$P7NW.z <- NULL
+dayfile$P7SE.x <- NULL
+dayfile$P7SE.y <- NULL
+dayfile$P7SE.z <- NULL
+dayfile$P8SW.x <- NULL
+dayfile$P8SW.y <- NULL
+dayfile$P8SW.z <- NULL
+dayfile$P8NE.x <- NULL
+dayfile$P8NE.y <- NULL
+dayfile$P8NE.z <- NULL
 
 #FINISH CODE
-write.csv(dayfile_tbl, file = sub(".csv", "_coded.csv", dayfile, ignore.case = FALSE, fixed = T)) #write output to file
-write.csv(hides, file = sub(".csv", "_hides.csv", dayfile, ignore.case = FALSE, fixed = T)) #write output to file
+write.csv(dayfile, file = sub(".csv", "_coded.csv", dayfileloc, ignore.case = FALSE, fixed = T)) #write output to file
+write.csv(hides, file = sub(".csv", "_hides.csv", dayfileloc, ignore.case = FALSE, fixed = T)) #write output to file
 
 
 #remove(dayfile_tbl)
@@ -774,6 +773,53 @@ system.time({
     dayfile_tbl <- dayfile_tbl[,c(seq(1, 44), 67, seq(45, 66))]
     
     write.csv(dayfile_tbl, file = files[[i]]) #write output to file
+    
+  }
+  
+  
+})
+
+
+
+# Retrospectively add new column of water temperature at the fish's depth
+
+fdtemp <- function(x, t1, t2, t4, t12){ 
+  
+  if(is.na(t1) == T){
+    
+    tatd <- NA
+    
+  } else {
+    
+    # create temperature profile using probe data
+    tprofile <- data.frame(depth = seq(0, 35, 0.01)) %>% # dataframe of depths in 0.01m increments
+      left_join(data.frame(depth = c(0, 1, 2, 4, 12, 35), temp = c(t1, t1, t2, t4, t12, t12)), by = 'depth') %>% # join probe data
+      mutate(temp = approx(depth, temp, depth)$y) # fill in gaps by imputing linear interpolation
+    
+    rownames(tprofile) <- tprofile$depth
+    #tprofile$depth <- NULL
+    
+    tatd <- as.numeric(tprofile[as.character(x),2]) # select temperature at fish's depth
+    
+  }
+  
+  return(tatd)
+}
+
+
+
+files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, recursive = FALSE)
+
+system.time({
+  
+  for(i in 1:length(files)){
+    
+    dayfile <- fread(files[[i]], drop = c(1))
+    dayfile$EchoTime <- as.POSIXct(dayfile$EchoTime)
+    
+    dayfile$FISHTEMP <- round(mapply(fdtemp, x = dayfile$PosZ, t1 = dayfile$T1, t2 = dayfile$T2, t4 = dayfile$T4, t12 = dayfile$T12, SIMPLIFY = T), 2)
+    
+    write.csv(dayfile, files[[i]]) #write output to file
     
   }
   
