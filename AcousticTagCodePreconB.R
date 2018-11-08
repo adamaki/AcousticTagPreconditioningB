@@ -11,10 +11,11 @@ library(XLConnect)
 library(openxlsx)
 options(java.parameters = "-Xmx32000m")
 library(tidyverse)
+library(data.table)
 
 #ENTER YOUR VARIABLES HERE
 workingdir = "H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/Recoded Day CSV" # change to location of data
-dayfileloc = "run_1LLF16S100311_day.csv" # change to file to be analysed
+dayfileloc = "run_1LLF16S100258_day_coded.csv" # change to file to be analysed
 masterfileloc = "H:/Acoustic tag - Preconditioning B/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
 day = '311' # day of the year
 bottom.threshold = 15 # threshold for fish at bottom of cage coding (depth in metres)
@@ -812,7 +813,7 @@ files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, rec
 
 system.time({
   
-  for(i in 1:length(files)){
+  for(i in 2:length(files)){
     
     dayfile <- fread(files[[i]], drop = c(1))
     dayfile$EchoTime <- as.POSIXct(dayfile$EchoTime)

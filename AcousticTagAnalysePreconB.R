@@ -107,11 +107,12 @@ library(Rwave)
 library(WaveletComp)
 library(dplyr)
 library(tidyr)
+library(data.table)
 
 
 
 #ENTER YOUR VARIABLES HERE
-workingdir = "H:/Data processing/2016 Conditioning study B/Filtered Data/Recoded Day CSV" # change to location of data
+workingdir = "H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/Recoded Day CSV" # change to location of data
 dayfile.loc = "run_1LLF16S100259_day_coded.csv" # change to file to be analysed
 masterfileloc = "H:/Data processing/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
 
@@ -1285,6 +1286,11 @@ batch.locations <- function(type)
       
     }
     
+    location.sum <- rbind(locations.P7, locations.P8)  
+    location.sum$ID <- NULL
+    location.sum  
+    write.csv(location.sum, 'LocationsOutput.csv')
+    
   } else { 
     
     if(type == 'days'){
@@ -1303,6 +1309,11 @@ batch.locations <- function(type)
         
       }
       
+      location.sum <- rbind(locations.P7, locations.P8)  
+      location.sum$ID <- NULL
+      location.sum  
+      write.csv(location.sum, 'LocationsOutput-days.csv')
+      
     } else { # type == 'fish'
       
       fish <- sort(unique(dayfile$Period))
@@ -1319,19 +1330,20 @@ batch.locations <- function(type)
         
       }
       
+      location.sum <- rbind(locations.P7, locations.P8)  
+      location.sum$ID <- NULL
+      location.sum  
+      write.csv(location.sum, 'LocationsOutput-fish.csv')
       
     }
     
   }
   
-  location.sum <- rbind(locations.P7, locations.P8)  
-  location.sum$ID <- NULL
-  location.sum  
+  #location.sum <- rbind(locations.P7, locations.P8)  
+  #location.sum$ID <- NULL
+  #location.sum  
   
-  #loadWorkbook('LocationsOutput.xlsx', create = TRUE)
-  #writeWorksheetToFile('LocationsOutput.xlsx', location.sum, 'Sheet 1')
-  
-  write.csv(location.sum, 'LocationsOutput.csv')
+  #write.csv(location.sum, 'LocationsOutput.csv')
 }
 
 
@@ -1450,13 +1462,13 @@ batch.depth <- function(){
 }
 
 
+
 # 6. batch function to return matrix of mean and standard error depths for all fish combined over multiple days
 
-batch.totdepth <- function(){
+batch.totdepth <- function(type){
   
   sumfunc <- function(x){ c(min = min(x), max = max(x), range = max(x)-min(x), mean = mean(x), median = median(x), std = sd(x)) }
   
-  files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, recursive = FALSE)
   depth.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se'))
   colnames(depth.P7) <- 'ID'
   rownames(depth.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se')
@@ -1464,34 +1476,78 @@ batch.totdepth <- function(){
   colnames(depth.P8) <- 'ID'
   rownames(depth.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se')
   
-  for (i in 1:length(files))
-  {
-    dayfile.loc <- files[[i]]
-    dayfile <- read.csv(dayfile.loc, header = TRUE, sep = ",", colClasses = dayfile.classes) #c
-                        #(
-                        #'NULL', 'factor', 'factor', 'factor', 'POSIXct', 'double', 'double', 
-                        #'double', 'double', 'double', 'double', 'double', 'double', 'factor',
-                        #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor',
-                        #'double', 'double', 'double', 'double', 'double', 'double', 'double',
-                        #'double', 'double', 'double', 'double', 'double', 'double', 'double',
-                        #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 
-                        #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 
-                        #'factor', 'factor', 'double', 'double', 'double', 'double', 'double', 
-                        #'double', 'double', 'double', 'double', 'double', 'double', 'double' 
-                        #)) #read data into table
+  
+  if(type == 'batch'){  
     
+    files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, recursive = FALSE)  
     
-    depth.dawn <- subset(dayfile, SUN == 'W' & PEN == '7')
-    depth.day <- subset(dayfile, SUN == 'D' & PEN == '7')
-    depth.dusk <- subset(dayfile, SUN == 'K' & PEN == '7')
-    depth.night <- subset(dayfile, SUN == 'N' & PEN == '7')
-    depth.P7[,as.character(i)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+    for (i in 1:length(files))
+    {
+      dayfile.loc <- files[[i]]
+      dayfile <- read.csv(dayfile.loc, header = TRUE, sep = ",", colClasses = dayfile.classes) 
+      
+      
+      depth.dawn <- subset(dayfile, SUN == 'W' & PEN == '7')
+      depth.day <- subset(dayfile, SUN == 'D' & PEN == '7')
+      depth.dusk <- subset(dayfile, SUN == 'K' & PEN == '7')
+      depth.night <- subset(dayfile, SUN == 'N' & PEN == '7')
+      depth.P7[,as.character(i)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+      
+      depth.dawn <- subset(dayfile, SUN == 'W' & PEN == '8')
+      depth.day <- subset(dayfile, SUN == 'D' & PEN == '8')
+      depth.dusk <- subset(dayfile, SUN == 'K' & PEN == '8')
+      depth.night <- subset(dayfile, SUN == 'N' & PEN == '8')
+      depth.P8[,as.character(i)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+    }
     
-    depth.dawn <- subset(dayfile, SUN == 'W' & PEN == '8')
-    depth.day <- subset(dayfile, SUN == 'D' & PEN == '8')
-    depth.dusk <- subset(dayfile, SUN == 'K' & PEN == '8')
-    depth.night <- subset(dayfile, SUN == 'N' & PEN == '8')
-    depth.P8[,as.character(i)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+  } else {
+    
+    if(type == 'day'){
+      
+      days <- c(paste0(sort(unique(as.Date(dayfile$EchoTime))), ' 00:00:00'), paste0(max(unique(as.Date(dayfile$EchoTime)))+days(1), ' 00:00:00'))
+      
+      for(d in 1:length(days)-1){
+        
+        daycut <- dayfile[dayfile$EchoTime > days[d] & dayfile$EchoTime < days[d+1],]
+        
+        depth.dawn <- subset(daycut, SUN == 'W' & PEN == '7')
+        depth.day <- subset(daycut, SUN == 'D' & PEN == '7')
+        depth.dusk <- subset(daycut, SUN == 'K' & PEN == '7')
+        depth.night <- subset(daycut, SUN == 'N' & PEN == '7')
+        depth.P7[,as.character(d)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+        
+        depth.dawn <- subset(daycut, SUN == 'W' & PEN == '8')
+        depth.day <- subset(daycut, SUN == 'D' & PEN == '8')
+        depth.dusk <- subset(daycut, SUN == 'K' & PEN == '8')
+        depth.night <- subset(daycut, SUN == 'N' & PEN == '8')
+        depth.P8[,as.character(d)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+        
+      }
+      
+    } else { # else type == fish
+      
+      fish <- sort(unique(dayfile$Period))
+      
+      for(f in 1:length(fish)){
+        
+        fishcut <- dayfile[dayfile$Period == fish[f],]
+        
+        depth.dawn <- subset(fishcut, SUN == 'W' & PEN == '7')
+        depth.day <- subset(fishcut, SUN == 'D' & PEN == '7')
+        depth.dusk <- subset(fishcut, SUN == 'K' & PEN == '7')
+        depth.night <- subset(fishcut, SUN == 'N' & PEN == '7')
+        depth.P7[,as.character(f)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+        
+        depth.dawn <- subset(fishcut, SUN == 'W' & PEN == '8')
+        depth.day <- subset(fishcut, SUN == 'D' & PEN == '8')
+        depth.dusk <- subset(fishcut, SUN == 'K' & PEN == '8')
+        depth.night <- subset(fishcut, SUN == 'N' & PEN == '8')
+        depth.P8[,as.character(f)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night)))
+        
+      }
+      
+    }
+    
   }
   
   depths.sum <- rbind(depth.P7, depth.P8)  
@@ -1500,7 +1556,7 @@ batch.totdepth <- function(){
   #loadWorkbook('DepthTotOutput.xlsx', create = TRUE)
   #writeWorksheetToFile('DepthTotOutput.xlsx', depths.sum, 'Sheet 1')
   
-  write.xlsx(depths.sum, 'DepthTotOutput.xlsx')
+  write.csv(depths.sum, 'DepthTotOutput.csv')
 }
 
 
@@ -1576,11 +1632,10 @@ batch.activity <- function(){
 
 # 8. batch function to return matrix of mean and standard error activity for all fish combined over multiple days
 
-batch.totactivity <- function(){
+batch.totactivity <- function(type){
   
   sumfunc <- function(x){ c(min = min(x), max = max(x), range = max(x)-min(x), mean = mean(x), median = median(x), std = sd(x)) }
   
-  files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, recursive = FALSE)
   activity.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se'))
   colnames(activity.P7) <- 'ID'
   rownames(activity.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se')
@@ -1588,31 +1643,95 @@ batch.totactivity <- function(){
   colnames(activity.P8) <- 'ID'
   rownames(activity.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se')
   
-  for (i in 1:length(files))
-  {
-    dayfile.loc <- files[[i]]
-    dayfile <- read.csv(dayfile.loc, header = TRUE, sep = ",", colClasses = dayfile.classes) 
+  if(type == 'batch'){
     
-    activity.dawn <- subset(dayfile, SUN == 'W' & PEN == '7')
-    activity.day <- subset(dayfile, SUN == 'D' & PEN == '7')
-    activity.dusk <- subset(dayfile, SUN == 'K' & PEN == '7')
-    activity.night <- subset(dayfile, SUN == 'N' & PEN == '7')
-    activity.P7[,as.character(i)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+    files <- list.files(path = workingdir, pattern = '*.csv', all.files = FALSE, recursive = FALSE)
     
-    activity.dawn <- subset(dayfile, SUN == 'W' & PEN == '8')
-    activity.day <- subset(dayfile, SUN == 'D' & PEN == '8')
-    activity.dusk <- subset(dayfile, SUN == 'K' & PEN == '8')
-    activity.night <- subset(dayfile, SUN == 'N' & PEN == '8')
-    activity.P8[,as.character(i)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
-  }
+    for (i in 1:length(files))
+    {
+      dayfile.loc <- files[[i]]
+      dayfile <- read.csv(dayfile.loc, header = TRUE, sep = ",", colClasses = dayfile.classes) 
+      
+      activity.dawn <- subset(dayfile, SUN == 'W' & PEN == '7')
+      activity.day <- subset(dayfile, SUN == 'D' & PEN == '7')
+      activity.dusk <- subset(dayfile, SUN == 'K' & PEN == '7')
+      activity.night <- subset(dayfile, SUN == 'N' & PEN == '7')
+      activity.P7[,as.character(i)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+      
+      activity.dawn <- subset(dayfile, SUN == 'W' & PEN == '8')
+      activity.day <- subset(dayfile, SUN == 'D' & PEN == '8')
+      activity.dusk <- subset(dayfile, SUN == 'K' & PEN == '8')
+      activity.night <- subset(dayfile, SUN == 'N' & PEN == '8')
+      activity.P8[,as.character(i)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+    }
+    
+    activity.sum <- rbind(activity.P7, activity.P8)  
+    activity.sum    
+    write.csv(activity.sum, 'ActivityTotOutput.csv')
+    
+    
+  } else {
+    
+    if(type == 'days'){
+      
+      days <- c(paste0(sort(unique(as.Date(dayfile$EchoTime))), ' 00:00:00'), paste0(max(unique(as.Date(dayfile$EchoTime)))+days(1), ' 00:00:00'))
+      
+      for(d in 1:length(days)-1){
+        
+        daycut <- dayfile[dayfile$EchoTime > days[d] & dayfile$EchoTime < days[d+1],] 
+        
+        activity.dawn <- subset(daycut, SUN == 'W' & PEN == '7')
+        activity.day <- subset(daycut, SUN == 'D' & PEN == '7')
+        activity.dusk <- subset(daycut, SUN == 'K' & PEN == '7')
+        activity.night <- subset(daycut, SUN == 'N' & PEN == '7')
+        activity.P7[,as.character(d)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+        
+        activity.dawn <- subset(daycut, SUN == 'W' & PEN == '8')
+        activity.day <- subset(daycut, SUN == 'D' & PEN == '8')
+        activity.dusk <- subset(daycut, SUN == 'K' & PEN == '8')
+        activity.night <- subset(daycut, SUN == 'N' & PEN == '8')
+        activity.P8[,as.character(d)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+        
+      }
+      
+      activity.sum <- rbind(activity.P7, activity.P8)  
+      activity.sum    
+      write.csv(activity.sum, 'ActivityTotOutput-days.csv')
+      
+      
+    } else { # else type == 'fish'
+      
+      fish <- sort(unique(dayfile$Period))
+      
+      for(f in 1:length(fish)){
+        
+        fishcut <- dayfile[dayfile$Period == fish[f],]
+        
+        activity.dawn <- subset(fishcut, SUN == 'W' & PEN == '7')
+        activity.day <- subset(fishcut, SUN == 'D' & PEN == '7')
+        activity.dusk <- subset(fishcut, SUN == 'K' & PEN == '7')
+        activity.night <- subset(fishcut, SUN == 'N' & PEN == '7')
+        activity.P7[,as.character(f)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+        
+        activity.dawn <- subset(fishcut, SUN == 'W' & PEN == '8')
+        activity.day <- subset(fishcut, SUN == 'D' & PEN == '8')
+        activity.dusk <- subset(fishcut, SUN == 'K' & PEN == '8')
+        activity.night <- subset(fishcut, SUN == 'N' & PEN == '8')
+        activity.P8[,as.character(f)] <- c(mean(activity.dawn$BLSEC, na.rm = T), sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn)), mean(activity.day$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day)), mean(activity.dusk$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk)), mean(activity.night$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night)))
+        
+      }
+      
+      activity.sum <- rbind(activity.P7, activity.P8)  
+      activity.sum    
+      write.csv(activity.sum, 'ActivityTotOutput-fish.csv')
+      
+      
+    }
+  }  
   
-  activity.sum <- rbind(activity.P7, activity.P8)  
-  #depths.sum$ID <- NULL
-  activity.sum    
-  #loadWorkbook('ActivityTotOutput.xlsx', create = TRUE)
-  #writeWorksheetToFile('ActivityTotOutput.xlsx', activity.sum, 'Sheet 1')
-  
-  write.xlsx(activity.sum, 'ActivityTotOutput.xlsx')
+  #activity.sum <- rbind(activity.P7, activity.P8)  
+  #activity.sum    
+  #write.csv(activity.sum, 'ActivityTotOutput.csv')
 }
 
 
@@ -3849,26 +3968,19 @@ dayfile <- data.frame()
 
 for(i in 1:length(files)){
 
-  daytemp <- read.csv(files[[i]], header = TRUE, sep = ",", colClasses = dayfile.classes)#c('NULL', 'numeric', 'factor', 'factor', 'POSIXct', 'double', 'double', 
-                                                                          #'double', 'double', 'double', 'double', 'double', 'double', 'factor',
-                                                                          #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor',
-                                                                          #'double', 'double', 'double', 'double', 'double', 'double', 'double',
-                                                                          #'double', 'double', 'double', 'double', 'double', 'double', 'double',
-                                                                          #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 
-                                                                          #'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 'factor', 
-                                                                          #'factor', 'factor', 'double', 'double', 'double', 'double', 'double', 
-                                                                          #'double', 'double', 'double', 'double', 'double', 'double', 'double'
-                                                                          
-  #)) #read data into table
-
+  #daytemp <- read.csv(files[[i]], header = TRUE, sep = ",", colClasses = dayfile.classes) #read data into table
+  daytemp <- fread(files[[i]])
+  
   dayfile <- rbind(dayfile, daytemp)
 
 }
 
+dayfile$EchoTime <- as.POSIXct(dayfile$EchoTime)
+dayfile$V1 <- NULL
 
 #SORT BY TIME AND TAG
-dayfile <- dayfile[order(dayfile$EchoTime, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by time
-dayfile <- dayfile[order(dayfile$Period, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by tag
+#dayfile <- dayfile[order(dayfile$EchoTime, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by time
+#dayfile <- dayfile[order(dayfile$Period, na.last = FALSE, decreasing = FALSE, method = c("shell")),] # sort by tag
 
 dayfile <<- dayfile
 
