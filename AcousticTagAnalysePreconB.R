@@ -1195,6 +1195,56 @@ hsdresult <- arrange(hsdresult, comparison)
 hsdresult
 
 
+# calculate least-squares regressions of daily means per pen and compare slopes
+library(lsmeans)
+
+aggtest <- dayfile[,c(3, 7, 69)]
+aggtest <- aggtest %>% group_by(PEN, day) %>% summarize_all(funs(mean, sd))
+aggtest <- as.data.frame(aggtest)
+#aggtest$day <- seq(1, 37, 1)
+m.interaction <- lm(mean~day*PEN, data = aggtest)
+anova(m.interaction)
+m.lst <- lstrends(m.interaction, 'PEN', var = 'day')
+m.lst
+pairs(m.lst)
+
+lm(mean~day, data = aggtest[aggtest$PEN == 8,]) # return slope and intercept
+
+
+# Headings stat analysis------------------------------------------------
+
+library(rcompanion)
+
+statdf <- dayfile[,c(1, 3, 4, 12, 13, 47, 48)]
+threshold <- 1
+statdf <- subset(statdf, BLSEC >= threshold)
+statdf <- subset(statdf, HEIGHT == 'S' | HEIGHT == 'N')
+
+model <- lm(HEAD~HEIGHT, data = statdf)
+
+freq <- hist(statdf$HEAD[statdf$PEN == '7'], breaks  = seq(0, 360, 45))
+hfdf <- data.frame('heading' = freq$breaks[1:8], 'count' = freq$counts)
+freq <- hist(statdf$HEAD[statdf$PEN == '8'], breaks  = seq(0, 360, 45))
+hfdf$P8 <- freq$counts
+colnames(hfdf) <- c('heading', 'acclimated', 'non_acclimated')
+rownames(hfdf) <- hfdf$heading
+hfdf$heading <- NULL
+hfdf <- as.data.frame(hfdf)
+
+# goodness of fit tests
+#hfdf$acclimated <- hfdf$acclimated/sum(hfdf$acclimated)
+#hfdf$non_acclimated <- hfdf$non_acclimated/sum(hfdf$non_acclimated)
+hfdf$theo <- 1/8 # create theoretical distribution (equal distribution of heading frequencies)
+
+chisq.test(x = hfdf$acclimated, p = hfdf$theo)
+chisq.test(x = hfdf$non_acclimated, p = hfdf$theo)
+
+# Cramer's V effect size test for nominal variables (http://rcompanion.org/handbook/H_03.html)
+cramerVFit(x = hfdf$acclimated, p = hfdf$theo)
+cramerVFit(x = hfdf$non_acclimated, p = hfdf$theo)
+
+# small = > 0.042, medium = > 0.127 and large = > 0.212
+
 # FUNCTIONS----------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -1476,12 +1526,12 @@ batch.totdepth <- function(type){
   
   sumfunc <- function(x){ c(min = min(x), max = max(x), range = max(x)-min(x), mean = mean(x), median = median(x), std = sd(x)) }
   
-  depth.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se'))
+  depth.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se', 'aov'))
   colnames(depth.P7) <- 'ID'
-  rownames(depth.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se')
-  depth.P8 <- data.frame(c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se'))
+  rownames(depth.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se', 'aov')
+  depth.P8 <- data.frame(c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se', 'aov'))
   colnames(depth.P8) <- 'ID'
-  rownames(depth.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se')
+  rownames(depth.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se', 'aov')
   
   
   if(type == 'batch'){  
@@ -1509,7 +1559,7 @@ batch.totdepth <- function(type){
     
   } else {
     
-    if(type == 'day'){
+    if(type == 'days'){
       
       days <- c(paste0(sort(unique(as.Date(dayfile$EchoTime))), ' 00:00:00'), paste0(max(unique(as.Date(dayfile$EchoTime)))+days(1), ' 00:00:00'))
       
@@ -1525,7 +1575,7 @@ batch.totdepth <- function(type){
           select(Period, PosZ)
         depth.night <- subset(daycut, SUN == 'N' & PEN == '7') %>% 
           select(Period, PosZ)
-        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
+        #mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         
         depth.dawn <- group_by(depth.dawn, Period) %>% 
           summarise(PosZ = mean(PosZ))
@@ -1535,10 +1585,22 @@ batch.totdepth <- function(type){
           summarise(PosZ = mean(PosZ))
         depth.night <- group_by(depth.night, Period) %>% 
           summarise(PosZ = mean(PosZ))
+        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         sedep <-  c(sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
         
+        # calculate day vs night anova
+        if(nrow(depth.day) > 2 & nrow(depth.night) >2){
+          depth.day$Period <- 'day'
+          depth.night$Period <- 'night'
+          aovdf <- rbind(depth.day, depth.night)
+          model <- aov(PosZ~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
+        
         #depth.P7[,as.character(d)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
-        depth.P7[,as.character(d)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]])
+        depth.P7[,as.character(d)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]], model)
         
         
         depth.dawn <- subset(daycut, SUN == 'W' & PEN == '8') %>% 
@@ -1549,7 +1611,7 @@ batch.totdepth <- function(type){
           select(Period, PosZ)
         depth.night <- subset(daycut, SUN == 'N' & PEN == '8') %>% 
           select(Period, PosZ)
-        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
+        #mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         
         depth.dawn <- group_by(depth.dawn, Period) %>% 
           summarise(PosZ = mean(PosZ))
@@ -1559,10 +1621,22 @@ batch.totdepth <- function(type){
           summarise(PosZ = mean(PosZ))
         depth.night <- group_by(depth.night, Period) %>% 
           summarise(PosZ = mean(PosZ))
+        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         sedep <-  c(sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
         
+        # calculate day vs night anova
+        if(nrow(depth.day) > 2 & nrow(depth.night) >2){
+          depth.day$Period <- 'day'
+          depth.night$Period <- 'night'
+          aovdf <- rbind(depth.day, depth.night)
+          model <- aov(PosZ~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
+        
         #depth.P8[,as.character(d)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
-        depth.P8[,as.character(d)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]])
+        depth.P8[,as.character(d)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]], model)
         
       }
       
@@ -1582,7 +1656,7 @@ batch.totdepth <- function(type){
           select(EchoTime, PosZ)
         depth.night <- subset(fishcut, SUN == 'N' & PEN == '7') %>% 
           select(EchoTime, PosZ)
-        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
+        #mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         
         depth.dawn <- group_by(depth.dawn, as.Date(EchoTime)) %>% 
           summarise(PosZ = mean(PosZ))
@@ -1592,10 +1666,22 @@ batch.totdepth <- function(type){
           summarise(PosZ = mean(PosZ))
         depth.night <- group_by(depth.night, as.Date(EchoTime)) %>% 
           summarise(PosZ = mean(PosZ))
+        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         sedep <-  c(sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
         
+        # calculate day vs night anova
+        if(nrow(depth.day) > 2 & nrow(depth.night) >2){
+          depth.day$Period <- 'day'
+          depth.night$Period <- 'night'
+          aovdf <- rbind(depth.day, depth.night)
+          model <- aov(PosZ~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
+        
         #depth.P7[,as.character(f)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
-        depth.P7[,as.character(f)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]])
+        depth.P7[,as.character(f)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]], model)
         
         depth.dawn <- subset(fishcut, SUN == 'W' & PEN == '8') %>% 
           select(EchoTime, PosZ)
@@ -1605,7 +1691,7 @@ batch.totdepth <- function(type){
           select(EchoTime, PosZ)
         depth.night <- subset(fishcut, SUN == 'N' & PEN == '8') %>% 
           select(EchoTime, PosZ)
-        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
+        #mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         
         depth.dawn <- group_by(depth.dawn, as.Date(EchoTime)) %>% 
           summarise(PosZ = mean(PosZ))
@@ -1615,10 +1701,22 @@ batch.totdepth <- function(type){
           summarise(PosZ = mean(PosZ))
         depth.night <- group_by(depth.night, as.Date(EchoTime)) %>% 
           summarise(PosZ = mean(PosZ))
+        mdep <- c(mean(depth.dawn$PosZ), mean(depth.day$PosZ), mean(depth.dusk$PosZ), mean(depth.night$PosZ))
         sedep <-  c(sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
         
+        # calculate day vs night anova
+        if(nrow(depth.day) > 2 & nrow(depth.night) >2){
+          depth.day$Period <- 'day'
+          depth.night$Period <- 'night'
+          aovdf <- rbind(depth.day, depth.night)
+          model <- aov(PosZ~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
+        
         #depth.P8[,as.character(f)] <- c(mean(depth.dawn$PosZ), sd(depth.dawn$PosZ)/sqrt(length(depth.dawn$PosZ)), mean(depth.day$PosZ), sd(depth.day$PosZ)/sqrt(length(depth.day$PosZ)), mean(depth.dusk$PosZ), sd(depth.dusk$PosZ)/sqrt(length(depth.dusk$PosZ)), mean(depth.night$PosZ), sd(depth.night$PosZ)/sqrt(length(depth.night$PosZ)))
-        depth.P8[,as.character(f)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]])
+        depth.P8[,as.character(f)] <- c(mdep[[1]], sedep[[1]], mdep[[2]], sedep[[2]], mdep[[3]], sedep[[3]], mdep[[4]], sedep[[4]], model)
         
       }
       
@@ -1712,12 +1810,12 @@ batch.totactivity <- function(type){
   
   sumfunc <- function(x){ c(min = min(x), max = max(x), range = max(x)-min(x), mean = mean(x), median = median(x), std = sd(x)) }
   
-  activity.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se'))
+  activity.P7 <- data.frame(c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se', 'P7_aov'))
   colnames(activity.P7) <- 'ID'
-  rownames(activity.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se')
-  activity.P8 <- data.frame(c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se'))
+  rownames(activity.P7) <- c('P7_dawn_mean', 'P7_dawn_se', 'P7_day_mean', 'P7_day_se', 'P7_dusk_mean', 'P7_dusk_se', 'P7_night_mean', 'P7_night_se', 'P7_aov')
+  activity.P8 <- data.frame(c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se', 'P8_aov'))
   colnames(activity.P8) <- 'ID'
-  rownames(activity.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se')
+  rownames(activity.P8) <- c('P8_dawn_mean', 'P8_dawn_se', 'P8_day_mean', 'P8_day_se', 'P8_dusk_mean', 'P8_dusk_se', 'P8_night_mean', 'P8_night_se', 'P8_aov')
   
   if(type == 'batch'){
     
@@ -1764,7 +1862,7 @@ batch.totactivity <- function(type){
           select(Period, BLSEC)
         activity.night <- subset(daycut, SUN == 'N' & PEN == '7') %>% 
           select(Period, BLSEC)
-        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        #mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
         
         activity.dawn <- group_by(activity.dawn, Period) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
@@ -1774,11 +1872,23 @@ batch.totactivity <- function(type){
           summarise(BLSEC = mean(BLSEC, na.rm = T))
         activity.night <- group_by(activity.night, Period) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
-        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
-        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC))) # se
+        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC)))
+        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
+        
+        # calculate day vs night anova
+        if(nrow(activity.day) > 2 & nrow(activity.night) >2){
+          activity.day$Period <- 'day'
+          activity.night$Period <- 'night'
+          aovdf <- rbind(activity.day, activity.night)
+          model <- aov(BLSEC~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
         
         #activity.P7[,as.character(d)] <- c(mean(activity.dawn$BLSEC), sd(activity.dawn$BLSEC)/sqrt(length(activity.dawn$BLSEC)), mean(activity.day$BLSEC), sd(activity.day$BLSEC)/sqrt(length(activity.day$BLSEC)), mean(activity.dusk$BLSEC), sd(activity.dusk$BLSEC)/sqrt(length(activity.dusk$BLSEC)), mean(activity.night$BLSEC), sd(activity.night$BLSEC)/sqrt(length(activity.night$BLSEC)))
-        activity.P7[,as.character(d)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]])
+        activity.P7[,as.character(d)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]], model)
         
         activity.dawn <- subset(daycut, SUN == 'W' & PEN == '8') %>% 
           select(Period, BLSEC)
@@ -1788,7 +1898,7 @@ batch.totactivity <- function(type){
           select(Period, BLSEC)
         activity.night <- subset(daycut, SUN == 'N' & PEN == '8') %>% 
           select(Period, BLSEC)
-        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        #mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
         
         activity.dawn <- group_by(activity.dawn, Period) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
@@ -1798,11 +1908,23 @@ batch.totactivity <- function(type){
           summarise(BLSEC = mean(BLSEC, na.rm = T))
         activity.night <- group_by(activity.night, Period) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
-        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
-        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC))) # se
+        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC)))
+        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
+        
+        # calculate day vs night anova
+        if(nrow(activity.day) > 2 & nrow(activity.night) >2){
+          activity.day$Period <- 'day'
+          activity.night$Period <- 'night'
+          aovdf <- rbind(activity.day, activity.night)
+          model <- aov(BLSEC~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
         
         #activity.P8[,as.character(d)] <- c(mean(activity.dawn$BLSEC), sd(activity.dawn$BLSEC)/sqrt(length(activity.dawn$BLSEC)), mean(activity.day$BLSEC), sd(activity.day$BLSEC)/sqrt(length(activity.day$BLSEC)), mean(activity.dusk$BLSEC), sd(activity.dusk$BLSEC)/sqrt(length(activity.dusk$BLSEC)), mean(activity.night$BLSEC), sd(activity.night$BLSEC)/sqrt(length(activity.night$BLSEC)))
-        activity.P8[,as.character(d)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]])
+        activity.P8[,as.character(d)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]], model)
         
       }
       
@@ -1827,7 +1949,7 @@ batch.totactivity <- function(type){
           select(EchoTime, BLSEC)
         activity.night <- subset(fishcut, SUN == 'N' & PEN == '7') %>% 
           select(EchoTime, BLSEC)
-        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        #mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
         
         activity.dawn <- group_by(activity.dawn, as.Date(EchoTime)) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
@@ -1837,11 +1959,23 @@ batch.totactivity <- function(type){
           summarise(BLSEC = mean(BLSEC, na.rm = T))
         activity.night <- group_by(activity.night, as.Date(EchoTime)) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
-        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
-        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC))) # se
+        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC)))
+        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
+        
+        # calculate day vs night anova
+        if(nrow(activity.day) > 2 & nrow(activity.night) >2){
+          activity.day$Period <- 'day'
+          activity.night$Period <- 'night'
+          aovdf <- rbind(activity.day, activity.night)
+          model <- aov(BLSEC~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
         
         #activity.P7[,as.character(f)] <- c(mean(activity.dawn$BLSEC), sd(activity.dawn$BLSEC)/sqrt(length(activity.dawn$BLSEC)), mean(activity.day$BLSEC), sd(activity.day$BLSEC)/sqrt(length(activity.day$BLSEC)), mean(activity.dusk$BLSEC), sd(activity.dusk$BLSEC)/sqrt(length(activity.dusk$BLSEC)), mean(activity.night$BLSEC), sd(activity.night$BLSEC)/sqrt(length(activity.night$BLSEC)))
-        activity.P7[,as.character(f)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]])
+        activity.P7[,as.character(f)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]], model)
         
         activity.dawn <- subset(fishcut, SUN == 'W' & PEN == '8') %>% 
           select(EchoTime, BLSEC)
@@ -1851,7 +1985,7 @@ batch.totactivity <- function(type){
           select(EchoTime, BLSEC)
         activity.night <- subset(fishcut, SUN == 'N' & PEN == '8') %>% 
           select(EchoTime, BLSEC)
-        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        #mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
         
         activity.dawn <- group_by(activity.dawn, as.Date(EchoTime)) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
@@ -1861,11 +1995,23 @@ batch.totactivity <- function(type){
           summarise(BLSEC = mean(BLSEC, na.rm = T))
         activity.night <- group_by(activity.night, as.Date(EchoTime)) %>% 
           summarise(BLSEC = mean(BLSEC, na.rm = T))
-        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
-        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC))) # se
+        mact <- c(mean(activity.dawn$BLSEC, na.rm = T), mean(activity.day$BLSEC, na.rm = T), mean(activity.dusk$BLSEC, na.rm = T), mean(activity.night$BLSEC, na.rm = T))
+        seact <-  c(sd(activity.dawn$BLSEC, na.rm = T)/sqrt(length(activity.dawn$BLSEC)), sd(activity.day$BLSEC, na.rm = T)/sqrt(length(activity.day$BLSEC)), sd(activity.dusk$BLSEC, na.rm = T)/sqrt(length(activity.dusk$BLSEC)), sd(activity.night$BLSEC, na.rm = T)/sqrt(length(activity.night$BLSEC)))
+        #seact <-  c(sd(activity.dawn$BLSEC, na.rm = T), sd(activity.day$BLSEC, na.rm = T), sd(activity.dusk$BLSEC, na.rm = T), sd(activity.night$BLSEC, na.rm = T)) # sd
+        
+        # calculate day vs night anova
+        if(nrow(activity.day) > 2 & nrow(activity.night) >2){
+          activity.day$Period <- 'day'
+          activity.night$Period <- 'night'
+          aovdf <- rbind(activity.day, activity.night)
+          model <- aov(BLSEC~Period, aovdf)
+          model <- summary(model)[[1]][["Pr(>F)"]][[1]]
+        } else {
+          model <- NA
+        } 
         
         #activity.P8[,as.character(f)] <- c(mean(activity.dawn$BLSEC), sd(activity.dawn$BLSEC)/sqrt(length(activity.dawn$BLSEC)), mean(activity.day$BLSEC), sd(activity.day$BLSEC)/sqrt(length(activity.day$BLSEC)), mean(activity.dusk$BLSEC), sd(activity.dusk$BLSEC)/sqrt(length(activity.dusk$BLSEC)), mean(activity.night$BLSEC), sd(activity.night$BLSEC)/sqrt(length(activity.night$BLSEC)))
-        activity.P8[,as.character(f)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]])
+        activity.P8[,as.character(f)] <- c(mact[[1]], seact[[1]], mact[[2]], seact[[2]], mact[[3]], seact[[3]], mact[[4]], seact[[4]], model)
         
       }
       
