@@ -1116,16 +1116,23 @@ cohen.d(actdf$log_BLSEC_trans, actdf$SUN)
 # Power analysis using pwr package-----------------------------
 
 library(pwr)
-pwr.anova.test(k = 3, f = 0.1, sig.level = 0.05, n = 24)
 
-pwr.t.test(n = 36, d = 0.5, sig.level = 0.05, type = 'paired')
+cohen.ES(test = 'anov', size = 'medium')
+cohen.ES(test = 'anov', size = 'small')
+cohen.ES(test = 'anov', size = 'large')
+
+pwr.anova.test(k = 2, f = 0.4, sig.level = 0.05, n = 40, power = NULL)
+
+pwr.t.test(n = 10, d = 0.4, sig.level = 0.05, type = 'two')
+
+pwr.f2.test(u = 10, v = NULL, f2 = 0.4, sig.level = 0.05, power = 0.8)
 
 
 # One-way anova to compare depth and activity at different times of day for Precon B study -------------------------------------------------------------
 
 
 # extract required data
-statdf <- dayfile[c(1, 3, 4, 7, 12, 46)] # extract required variables
+statdf <- dayfile[,c(1, 3, 4, 7, 12, 46)] # extract required variables
 #statdf <- subset(statdf, SUN == 'D')
 statdf$date <- as.Date(statdf$EchoTime + hours(1))
 
@@ -1164,7 +1171,7 @@ etaSquared(aovact)
 
 # http://www.sthda.com/english/wiki/two-way-anova-test-in-r
 
-statdf <- dayfile[c(1, 3, 4, 7, 12, 46)] # extract required variables
+statdf <- dayfile[,c(1, 3, 4, 7, 12, 46)] # extract required variables
 statdf$date <- as.Date(statdf$EchoTime + hours(1))
 
 statsubdf <- subset(statdf, PEN == 7) # extract group
@@ -1244,6 +1251,65 @@ cramerVFit(x = hfdf$acclimated, p = hfdf$theo)
 cramerVFit(x = hfdf$non_acclimated, p = hfdf$theo)
 
 # small = > 0.042, medium = > 0.127 and large = > 0.212
+
+
+
+# stats to calculate mean depth difference per day between wild and farmed fish (for publication plot)
+
+statdf <- select(dayfile, Period, PEN, PosZ, day) %>%
+  group_by(Period, PEN, day) %>%
+  summarise(mdep = mean(PosZ)) 
+
+statdf$day <- as.factor(statdf$day)
+statdf$PEN <- as.factor(statdf$PEN)
+
+
+for(i in 1:30){
+  
+  model <- aov(formula = mdep~PEN, data = filter(statdf, day == i))
+  print(i)
+  print(summary(model))
+  
+}
+
+# anova to calculate difference between day 1 depth
+
+statdf <- filter(statdf, day == '1')
+model <- aov(mdep~PEN, data = statdf)
+
+
+# Calculation of detection rates for methods paper
+
+setwd('H:/Acoustic tag - Preconditioning B/Data processing/6a. Coded Day CSV/Final run/Recoded') # load unfiltered data for detection rates
+load.all()
+
+preconb$date <- as.Date(preconb$EchoTime)
+preconb <- preconb %>% filter(Period %in% c(9873, 7381, 7045, 7269, 9901, 9425, 9649, 9453, 8025, 8081, 8277, 7241, 7409, 8109, 7101, 9145, 8529, 9173, 9537, 7857, 7437, 7745, 8165, 7661))
+
+pbag <- select(preconb, Period, PEN, date) %>% 
+  count(Period, date, name = 'dpings') %>% 
+  mutate(ppings = round((60/(Period/1000))*1440)) %>% # calculate No. of pings in one day based on PRI
+  mutate(pdiff = ppings-dpings) %>%
+  mutate(pcdet = (dpings/ppings)*100) %>%
+  filter(date != '2016-09-14') %>%
+  group_by(date) %>% 
+  summarise(mean = mean(pcdet), sd = sd(pcdet)) %>%
+  mutate(day = seq(1, 29, 1))
+
+write.csv(pbag, 'H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/Recoded Day CSV/Outputs/DetectionRates.csv')
+
+ggplot(pbag) + 
+  geom_line(aes(x = day, y = mean)) +
+  geom_point(aes(x = day, y = mean)) +
+  scale_y_continuous(limits = c(0, 100), breaks = seq(10, 100, 10), name = 'Detection rate (%)') +
+  scale_x_continuous(limits = c(0, 30), breaks = seq(0, 30, 5), name = 'Experiment day') +
+  geom_errorbar(aes(x = day, ymin = mean-sd, ymax = mean+sd))
+
+# plot of daily detection rates for each tag
+ggplot(pbag) +
+  geom_line(aes(x = date, y = pcdet, group = Period, colour = as.factor(Period))) +
+  scale_y_continuous(limits = c(0, 100), breaks = seq(10, 100, 10), name = 'Detection rate (%)') +
+  facet_wrap(~Period)
 
 # FUNCTIONS----------------------------------------------------------------------------------------------------------------------------------
 
