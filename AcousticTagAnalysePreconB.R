@@ -116,7 +116,7 @@ workingdir = "H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/
 dayfile.loc = "run_1LLF16S100259_day_coded.csv" # change to file to be analysed
 masterfileloc = "H:/Data processing/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
 
-workingdir = "H:/Data processing/2016 Conditioning study B/Filtered Data/Recoded Fish CSV/Conditioned" # change to location of data
+workingdir = "H:/Acoustic tag - Preconditioning B/Data processing/Filtered Data/Recoded Fish CSV/Unconditioned" # change to location of data
 dayfile.loc = "run_1LLF16S1007045_fish_coded.csv" # change to file to be analysed
 masterfileloc = "H:/Data processing/AcousticTagFile_2016.xlsx" # change to location of AcousticTagFile.xlsx
 
@@ -1060,6 +1060,28 @@ is.na(tab1) <- !tab1
 range(tab1[1:nrow(tab1),], na.rm = T)
 
 
+#draw plots of behaviour states from bsf2 function output----------------------
+
+grouppal <- c(brewer.pal(11, 'Spectral')[[2]], brewer.pal(11, 'Spectral')[[3]], brewer.pal(11, 'Spectral')[[4]], brewer.pal(11, 'Spectral')[[8]], brewer.pal(11, 'Spectral')[[9]], brewer.pal(11, 'Spectral')[[10]])
+
+bstab$pen <- revalue(bstab$pen, c('7' = 'Acclimated', '8' = 'Non-acclimated')) # change group names
+bstab$BS <- revalue(bstab$BS, c('Rr' = 'static', 'Rf' = 'milling', 'Ra' = 'active resident', 'Ep' = 'patrolling', 'Ef' = 'foraging', 'Ea' = 'active transient')) # rename behaviour states
+
+bstab$dur <- bstab$dur/60 # convert duration to minutes
+
+sp <- ggplot(bstab, aes(x=dur, y=freq, colour = pen, group = pen)) + theme(panel.background = element_rect(fill = 'white', colour = 'black')) +
+#  scale_x_log10(limits = c(10, 10000), 
+#                breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000), 
+#                labels = c(1, '', '', '', '', '', '', '', '', 10, '', '', '', '', '', '', '', '', 100, '', '', '', '', '', '', '', '', 1000, '', '', '', '', '', '', '', '', 10000)) +
+  scale_x_log10(limits = c(0.1, 1000), 
+                breaks = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000), 
+                labels = c(0.1, '', '', '', '', '', '', '', '', 1, '', '', '', '', '', '', '', '', 10, '', '', '', '', '', '', '', '', 100, '', '', '', '', '', '', '', '', 1000)) +
+  scale_y_log10(limits = c(0.001, 1), breaks = c(0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.8, 0.09, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), 
+                labels = c(bquote(10^-3), '', '', '', '', '', '', '', '', bquote(10^-2), '', '', '', '', '', '', '', '', bquote(10^-1), '', '', '', '', '', '', '', '', bquote(10^0))) +
+  geom_path(size = 1) + labs(title = 'Behaviour state frequencies', x = 'duration (mins)', y = 'frequency') + scale_colour_manual(values = c(grouppal[[1]], grouppal[[4]])) + 
+  theme(legend.title = element_blank()) +
+  #guides(colour = F)# + geom_smooth(linetype = 'dashed',  method = 'nls', formula = y~a*x^b, se = F) + geom_text(size = 4.5, hjust = 0, aes(x = 100, y = 1, colour = grouppal[[2]], label = power_eqn(subset(bstab, pen == '7' & BS == 'Ea'))), parse = TRUE) + geom_text(size = 4.5, hjust = 0, aes(x = 100, y = 0.6, colour = grouppal[[1]], label = power_eqn(subset(bstab, pen == '8' & BS == 'Ea'))), parse = TRUE)
+  facet_wrap(vars(BS))
 
 #--------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -5121,7 +5143,7 @@ bsf2 <- function(save = T){
   
   bsffile <- subset(bsffile, BSdur > 0)
   #bsffile$round <- as.numeric(as.character(cut(bsffile$BSFdur, breaks = c(0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000), labels = c('1', '2', '5', '10', '20', '50', '100', '200', '500', '1000'))))
-  bsffile$round <- as.numeric(as.character(cut(bsffile$BSdur, breaks = c(0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024), labels = c('1', '2', '4', '8', '16', '32', '64', '128', '256', '512', '1024'))))
+  bsffile$round <- as.numeric(as.character(cut(bsffile$BSdur, breaks = c(0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192), labels = c('1', '2', '4', '8', '16', '32', '64', '128', '256', '512', '1024', '2048', '4096', '8192'))))
   
   # generates table of BSF frequencies and draws plot
   
@@ -5134,8 +5156,8 @@ bsf2 <- function(save = T){
   
   bssum <- tapply(bstab$count, list(bstab$BS, bstab$pen), sum)
   
-  bstab$freq <- ifelse(bstab$BS == 'Ea', bstab$count / bssum[1,1], ifelse(bstab$BS == 'Ef', bstab$count / bssum[2,1], ifelse(bstab$BS == 'Ep', bstab$count / bssum[3,1], ifelse(bstab$BS == 'Ra', bstab$count / bssum[4,1], ifelse(bstab$BS == 'Rf', bstab$count / bssum[5,1], ifelse(bstab$BS == 'Rr', bstab$count / bssum[6,1], NA))))))
-  
+  bstab$freq <- ifelse(bstab$BS == 'Ea' & bstab$pen == '7', bstab$count / bssum[1,1], ifelse(bstab$BS == 'Ef' & bstab$pen == '7', bstab$count / bssum[2,1], ifelse(bstab$BS == 'Ep' & bstab$pen == '7', bstab$count / bssum[3,1], ifelse(bstab$BS == 'Ra' & bstab$pen == '7', bstab$count / bssum[4,1], ifelse(bstab$BS == 'Rf' & bstab$pen == '7', bstab$count / bssum[5,1], ifelse(bstab$BS == 'Rr' & bstab$pen == '7', bstab$count / bssum[6,1], 
+                    ifelse(bstab$BS == 'Ea' & bstab$pen == '8', bstab$count / bssum[1,2], ifelse(bstab$BS == 'Ef' & bstab$pen == '8', bstab$count / bssum[2,2], ifelse(bstab$BS == 'Ep' & bstab$pen == '8', bstab$count / bssum[3,2], ifelse(bstab$BS == 'Ra' & bstab$pen == '8', bstab$count / bssum[4,2], ifelse(bstab$BS == 'Rf' & bstab$pen == '8', bstab$count / bssum[5,2], ifelse(bstab$BS == 'Rr' & bstab$pen == '8', bstab$count / bssum[6,2], NA))))))))))))
   
   bstab <- subset(bstab, bstab$freq > 0)
   
@@ -5179,6 +5201,7 @@ bsf2 <- function(save = T){
   #bsfplot <- bsfplot + draw_text(daytext, size = 16, x = 0.71, y = 0.33, hjust = 0)
   #print(bsfplot) 
   print(sp)
+  bstab <<- bstab
   
   #if(save == T){
   #ggsave(filename = sub('day_coded.csv', '_bsfplot.png', dayfile.loc), plot = bsfplot) 
