@@ -146,18 +146,18 @@ getmode <- function(v) {
 getmode(hide.diff$dist)# Calculate modal average
 mod <- ddply(hide.diff, 'hide', summarise, grp.mean = getmode(round(dist, 2)))
 
-labeldf <- data.frame(dist = rep(15, 4), density = rep(0.45, 4), label = c('(a)', '(b)', '(c)', '(d)'), hide = c('NE', 'NW', 'SE', 'SW'))
+labeldf <- data.frame(dist = rep(10, 4), density = rep(0.45, 4), label = c('(a)', '(b)', '(c)', '(d)'), hide = c('NE', 'NW', 'SE', 'SW'))
 
 ggplot(hide.diff) + 
   #geom_histogram(aes(dist, y = ..density..), colour = 'black', fill = 'white', binwidth = 0.1) +
   geom_density(aes(dist, fill = hide), alpha = 1) +
   geom_vline(data = mod, aes(xintercept = grp.mean), linetype = 'dashed', size = 1) +
   geom_vline(aes(xintercept = 1), linetype = 'solid', size = 1) +
-  scale_x_continuous(limits = c(0, 17), breaks = seq(0, 17, 1), name = 'Distance (m)') +
-  scale_y_continuous(name = 'Density') +
+  scale_x_continuous(limits = c(0, 12), breaks = seq(0, 12, 1), name = 'Distance (m)', expand = c(0, 0)) +
+  scale_y_continuous(name = 'Density', expand = c(0, 0)) +
   facet_wrap(vars(hide)) +
   theme_classic() + 
-  theme(legend.position = 'none', strip.background = element_blank(), strip.text.x = element_blank(), text = element_text(size = 14)) +
+  theme(legend.position = 'none', strip.background = element_blank(), strip.text.x = element_blank(), text = element_text(size = 14), panel.spacing = unit(2, 'lines')) +
   scale_fill_manual(values = rep('grey80', 4)) +
   geom_text(data = labeldf, aes(x = dist, y = density, label = label, fontface = 'bold', size = 30))
 
